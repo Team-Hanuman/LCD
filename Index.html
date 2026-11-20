@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>16x2 LCD Demo</title>
+<style>
+*{box-sizing:border-box}
+body{
+  margin:0; min-height:100vh; display:flex; align-items:center; justify-content:center;
+  background:#e9e9e9; font-family:Arial,sans-serif; color:#222;
+}
+.setup{display:flex;gap:55px;align-items:center;flex-wrap:wrap;justify-content:center}
+.board{
+  width:320px;height:280px;background:#0b6b4b;border-radius:8px;
+  border:5px solid #084d38;box-shadow:0 12px 28px #0004;position:relative;padding:18px;
+}
+.board:before{
+  content:"";position:absolute;inset:12px;
+  background:repeating-linear-gradient(0deg,transparent 0 23px,#8ac4a51e 24px),
+             repeating-linear-gradient(90deg,transparent 0 23px,#8ac4a51e 24px);
+}
+.fpga{
+  position:absolute;left:92px;top:62px;width:135px;height:105px;background:#181818;
+  border:4px solid #292929;box-shadow:0 3px 8px #0008;
+  display:flex;align-items:center;justify-content:center;color:#bbb;font-size:13px;text-align:center
+}
+.label{position:absolute;top:18px;left:20px;color:white;font-weight:bold;letter-spacing:1px}
+.switches{position:absolute;bottom:24px;left:44px;display:flex;gap:32px}
+.swbox{text-align:center;color:white;font-size:12px}
+.switch{
+  width:42px;height:64px;background:#ddd;border:4px solid #333;border-radius:5px;
+  padding:4px;cursor:pointer;box-shadow:inset 0 0 4px #0008
+}
+.knob{height:26px;background:#111;border-radius:3px;transition:.15s}
+.switch.on .knob{transform:translateY(26px)}
+.reset{
+  position:absolute;bottom:29px;right:38px;width:48px;height:48px;border-radius:50%;
+  border:5px solid #bbb;background:#c52c2c;box-shadow:0 4px 0 #751818;cursor:pointer
+}
+.reset:active{transform:translateY(3px);box-shadow:0 1px 0 #751818}
+.rlabel{position:absolute;bottom:9px;right:39px;color:white;font-size:11px}
+.wires{
+  width:80px;height:180px;position:relative
+}
+.wires span{position:absolute;left:-20px;width:120px;height:3px;background:#333;border-radius:4px}
+.wires span:nth-child(1){top:50px;transform:rotate(-5deg)}
+.wires span:nth-child(2){top:80px}
+.wires span:nth-child(3){top:110px;transform:rotate(5deg)}
+.lcd{
+  width:500px;height:205px;background:#176f45;border:5px solid #0b4c31;border-radius:6px;
+  box-shadow:0 12px 28px #0004;position:relative;padding:42px 35px 25px
+}
+.hole{position:absolute;width:13px;height:13px;border-radius:50%;background:#ddd;border:3px solid #0b4c31}
+.h1{left:12px;top:12px}.h2{right:12px;top:12px}.h3{left:12px;bottom:12px}.h4{right:12px;bottom:12px}
+.screen{
+  height:105px;background:#9aae37;border:9px solid #202820;box-shadow:inset 0 0 14px #314400;
+  padding:12px 18px;overflow:hidden
+}
+.row{
+  height:38px;font-family:"Courier New",monospace;font-size:30px;font-weight:bold;
+  letter-spacing:4px;color:#182900;white-space:pre
+}
+.pins{position:absolute;top:9px;left:85px;display:flex;gap:8px}
+.pin{width:13px;height:18px;background:#d4b340;border:1px solid #665000}
+.selread{
+  position:absolute;bottom:8px;left:125px;color:#d9f4e7;font-family:monospace;font-size:12px
+}
+@media(max-width:950px){.wires{display:none}.setup{gap:25px}.lcd{width:min(500px,94vw)}}
+</style>
+</head>
+<body>
+<div class="setup">
+  <div class="board">
+    <div class="label">FPGA BOARD</div>
+    <div class="fpga">FPGA<br>LCD Controller</div>
+    <div class="switches">
+      <div class="swbox">SEL[1]<div class="switch" id="s1"><div class="knob"></div></div></div>
+      <div class="swbox">SEL[0]<div class="switch" id="s0"><div class="knob"></div></div></div>
+    </div>
+    <button class="reset" id="reset" aria-label="Reset"></button>
+    <div class="rlabel">RESET</div>
+  </div>
+
+  <div class="wires"><span></span><span></span><span></span></div>
+
+  <div class="lcd">
+    <i class="hole h1"></i><i class="hole h2"></i><i class="hole h3"></i><i class="hole h4"></i>
+    <div class="pins">
+      <i class="pin"></i><i class="pin"></i><i class="pin"></i><i class="pin"></i>
+      <i class="pin"></i><i class="pin"></i><i class="pin"></i><i class="pin"></i>
+      <i class="pin"></i><i class="pin"></i><i class="pin"></i><i class="pin"></i>
+      <i class="pin"></i><i class="pin"></i><i class="pin"></i><i class="pin"></i>
+    </div>
+    <div class="screen">
+      <div class="row" id="r1">                </div>
+      <div class="row">                </div>
+    </div>
+    <div class="selread" id="read">SEL = 00</div>
+  </div>
+</div>
+
+<script>
+let b1=0,b0=0,timers=[];
+const names=["HANUMAN","VIBHISHANA","PARASHURAMA","KRIPAVYALI"];
+const r1=document.getElementById("r1"),read=document.getElementById("read");
+function clearTimers(){timers.forEach(clearTimeout);timers=[]}
+function renderSwitches(){
+  document.getElementById("s1").classList.toggle("on",b1);
+  document.getElementById("s0").classList.toggle("on",b0);
+  read.textContent=`SEL = ${b1}${b0}`;
+}
+function run(){
+  clearTimers();renderSwitches();r1.textContent=" ".repeat(16);
+  const name=names[(b1<<1)|b0];
+  let shown="";
+  [...name].forEach((c,i)=>{
+    timers.push(setTimeout(()=>{
+      shown+=c;
+      r1.textContent=(shown+" ".repeat(16)).slice(0,16);
+    },650+i*300));
+  });
+}
+document.getElementById("s1").onclick=()=>{b1=b1?0:1;run()};
+document.getElementById("s0").onclick=()=>{b0=b0?0:1;run()};
+document.getElementById("reset").onclick=()=>{
+  clearTimers();r1.textContent=" ".repeat(16);
+  setTimeout(run,450);
+};
+renderSwitches();run();
+</script>
+</body>
+</html>
