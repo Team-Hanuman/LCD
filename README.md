@@ -5,6 +5,11 @@
 ### A Selection-Based Character Display System Using FSM and Multiplexer
 
 ---
+---
+
+
+
+[Click here to view the Project PDF](content://media/external_primary/file/1000397715)
 
 ## 1. Introduction
 
